@@ -1,0 +1,6 @@
+(executable
+ (public_name icfpc2023)
+ (name main)
+ (preprocess (pps ppx_yojson_conv ))
+ (libraries icfpc2023)
+)

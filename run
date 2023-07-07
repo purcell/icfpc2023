@@ -1,0 +1,14 @@
+#!/bin/bash -e
+
+cd $(dirname "$0")
+
+prog=_build/install/default/bin/icfpc2023
+
+n="$1"
+
+if [ -z "$n" ]; then
+  echo "usage: $0 n" 1>&2
+  exit 2
+fi
+
+gzcat "problems/problem-$n.json.gz" | "$prog" | jq . > "solutions/solution-$n.json"
