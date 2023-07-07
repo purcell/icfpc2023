@@ -1,0 +1,20 @@
+#!/bin/bash -e
+
+cd $(dirname "$0")
+
+n="$1"
+
+if [ -z "$n" ]; then
+  echo "usage: $0 n" 1>&2
+  exit 2
+fi
+
+token="$(cat token)"
+
+# For debug: -s -D-
+
+curl \
+   -X POST https://api.icfpcontest.com/submission \
+   -H 'Content-Type: application/json' \
+   -H "Authorization: Bearer $token" \
+   -d "{\"problem_id\":$n,\"contents\":$(jq tojson < solutions/solution-$n.json)}"

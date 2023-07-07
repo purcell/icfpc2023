@@ -25,10 +25,8 @@ type problem = { room_width : int;
 type placement = { x: int; y: int } [@@deriving yojson];;
 type solution = { placements: placement list } [@@deriving yojson]
 
-(* type solver = problem -> solution;; *)
 
-(* Randomly place the musicians on the stage *)
-let spread_solver p =
+let grid_positions p =
   let (x_bl, y_bl) = p.stage_bottom_left in
   let inner_width = p.stage_width - 20 in
   let inner_height = p.stage_height - 20 in
@@ -42,25 +40,14 @@ let spread_solver p =
       else
         { x = !pos.x + 10; y = !pos.y; }
   done;
-  Random.init 42;
-  let placements = List.to_seq !spots |> Seq.take (List.length p.musicians) |> List.of_seq in
+  !spots;;
+
+let spread_solver p =
+  let placements = List.to_seq (grid_positions p) |> Seq.take (List.length p.musicians) |> List.of_seq in
   { placements = placements };;
-
-
-let () =
-  let _ = taste_of_yojson (Yojson.Safe.from_string "5") in
-  let _ = coord_of_yojson (Yojson.Safe.from_string "[0, 0]") in
-  let _ = attendee_of_yojson (Yojson.Safe.from_string "{\"x\": 0, \"y\": 0, \"tastes\": [-5, 6, 3]}")
-  in ();
-;;
 
 
 let () =
   let prob = problem_of_yojson (Yojson.Safe.from_channel Stdlib.stdin) in
   let soln = spread_solver prob in
   Yojson.Safe.to_channel Stdlib.stdout (yojson_of_solution soln);;
-
-
-
-
-(*     List.iter print_endline ["Hello, World!"; "So long"; "whatevs"; "yo yo yo"]; *)
