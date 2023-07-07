@@ -27,15 +27,23 @@ type solution = { placements: placement list } [@@deriving yojson]
 
 (* type solver = problem -> solution;; *)
 
-
 (* Randomly place the musicians on the stage *)
 let spread_solver p =
-  Random.init 42;
   let (x_bl, y_bl) = p.stage_bottom_left in
-  let placements = List.mapi (fun _n _player ->
-      ({ x = x_bl + 1 + (Random.int (p.stage_width - 2 ));
-         y = y_bl + 1 + (Random.int (p.stage_height - 2));
-       } : placement) ) p.musicians in
+  let inner_width = p.stage_width - 20 in
+  let inner_height = p.stage_height - 20 in
+  let to_placement p = { x = p.x + x_bl + 10; y = p.y + y_bl + 10; } in
+  let spots = ref [] in
+  let pos = ref { x = 0; y = 0; } in
+  while !pos.x <= inner_width && !pos.y <= inner_height do
+    spots := to_placement !pos :: !spots;
+    pos := if !pos.x + 10 > inner_width then
+        { x = if !pos.x mod 10 = 0 then 5 else 0; y = !pos.y + 10; }
+      else
+        { x = !pos.x + 10; y = !pos.y; }
+  done;
+  Random.init 42;
+  let placements = List.to_seq !spots |> Seq.take (List.length p.musicians) |> List.of_seq in
   { placements = placements };;
 
 
