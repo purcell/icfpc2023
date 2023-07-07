@@ -25,7 +25,13 @@ type problem = { room_width : int;
 type placement = { x: int; y: int } [@@deriving yojson];;
 type solution = { placements: placement list } [@@deriving yojson]
 
+let shuffle d =
+  let nd = List.map (fun c -> (Random.bits (), c)) d in
+  let sond = List.sort compare nd in
+  List.map snd sond;;
 
+(* Make a set of potential positions by using staggered rows *)
+(* of points within the stage space inset from the edge *)
 let grid_positions p =
   let (x_bl, y_bl) = p.stage_bottom_left in
   let inner_width = p.stage_width - 20 in
@@ -43,11 +49,16 @@ let grid_positions p =
   !spots;;
 
 let spread_solver p =
-  let placements = List.to_seq (grid_positions p) |> Seq.take (List.length p.musicians) |> List.of_seq in
+  let placements = grid_positions p
+                   |> shuffle
+                   |> List.to_seq
+                   |> Seq.take (List.length p.musicians)
+                   |> List.of_seq in
   { placements = placements };;
 
 
 let () =
+  Random.init 42;
   let prob = problem_of_yojson (Yojson.Safe.from_channel Stdlib.stdin) in
   let soln = spread_solver prob in
   Yojson.Safe.to_channel Stdlib.stdout (yojson_of_solution soln);;
