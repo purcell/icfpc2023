@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+cd $(dirname "$0")
+
+n="$1"
+
+if [ -z "$n" ]; then
+  echo "usage: $0 n" 1>&2
+  exit 2
+fi
+
+token="$(cat token)"
+
+# For debug: -s -D-
+
+curl -X GET https://api.icfpcontest.com/problem?problem_id=$n > /tmp/problem-$n.raw.json
+jq '.Success | fromjson' < /tmp/problem-$n.raw.json > /tmp/problem-$n.unpack.json
+gzip -9 -m < /tmp/problem-$n.unpack.json > problems/problem-$n.json.gz
