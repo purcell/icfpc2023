@@ -74,32 +74,34 @@ let raw_score_at instrument attendees placement =
 (*   |> List.of_seq;; *)
 
 module IntMap = Map.Make(Int);;
+module IntSet = Set.Make(Int);;
 
 let choose_best p positions =
   let positions = Array.of_list positions in
   let scored_positions = ref [] in
-  Array.iteri
-    (fun player_num instrument ->
+  Seq.iter
+    (fun instrument ->
        Array.iteri
          (fun placement_num placement ->
             let score = raw_score_at instrument p.attendees placement in
-            scored_positions := (player_num, placement_num, score) :: !scored_positions
+            scored_positions := (instrument, placement_num, score) :: !scored_positions
          )
          positions)
-    p.musicians;
+    (p.musicians |> Array.to_seq |> IntSet.of_seq |> IntSet.to_seq);
   (* Sort positions to get highest-scoring first *)
   let best_positions = List.sort (fun (_, _, s1) (_, _, s2) -> Float.compare s2 s1) !scored_positions in
   let placed = Array.fold_left
-      (fun placed this_player ->
-         let (_, best_placement_num, _) =
-           List.find
-             (fun (player_num, placement_num, _) ->
-                this_player = player_num && not (IntMap.mem placement_num placed))
-             best_positions in
-         IntMap.add best_placement_num this_player placed
+      (fun placed (this_player, this_instrument) ->
+         List.to_seq best_positions
+         |> Seq.filter (fun (instrument, placement_num, _) ->
+             this_instrument = instrument && not (IntMap.mem placement_num placed))
+         |> Seq.take 1
+         |> List.of_seq
+         |> function | [(_, best_placement_num, _)] -> IntMap.add best_placement_num this_player placed;
+                     | _ -> failwith "No valid placement found"
       )
       IntMap.empty
-      (Array.mapi (fun i _ -> i) p.musicians) in
+      (Array.mapi (fun i instr -> (i, instr)) p.musicians) in
   placed
   |> IntMap.to_list
   |> List.sort (fun a b -> Int.compare (snd a) (snd b))
