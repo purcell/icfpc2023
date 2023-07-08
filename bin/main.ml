@@ -29,10 +29,6 @@ type problem = { room_width : int;
 type placement = { x: int; y: int } [@@deriving yojson_of];;
 type solution = { placements: placement list } [@@deriving yojson_of]
 
-(* let shuffle d = *)
-(*   let nd = List.map (fun c -> (Random.bits (), c)) d in *)
-(*   let sond = List.sort compare nd in *)
-(*   List.map snd sond;; *)
 
 (* Make a set of potential positions by using staggered rows *)
 (* of points within the stage space inset from the edge *)
@@ -67,17 +63,32 @@ let raw_score_at instrument attendees placement =
     ) attendees;
   !total;;
 
-(* let choose_random p placements = *)
-(*   shuffle placements *)
-(*   |> List.to_seq *)
-(*   |> Seq.take (Array.length p.musicians) *)
-(*   |> List.of_seq;; *)
+module IntPair =
+struct
+  type t = int * int
+  let compare (x0,y0) (x1,y1) =
+    match Int.compare x0 x1 with
+      0 -> Int.compare y0 y1
+    | c -> c
+end;;
+
+module IntPairMap = Map.Make(IntPair);;
+module IntPairSet = Set.Make(IntPair);;
 
 module IntMap = Map.Make(Int);;
 module IntSet = Set.Make(Int);;
 
+let players_by_instrument p =
+  Array.to_seq p.musicians
+  |> Seq.fold_lefti
+    (fun by_instrument n i ->
+       IntMap.add_to_list i n by_instrument
+    ) IntMap.empty;;
+
+
 let choose_best p positions =
   let positions = Array.of_list positions in
+  let known_instruments = (p.musicians |> Array.to_seq |> IntSet.of_seq |> IntSet.to_seq) in
   let scored_positions = ref [] in
   Seq.iter
     (fun instrument ->
@@ -87,32 +98,37 @@ let choose_best p positions =
             scored_positions := (instrument, placement_num, score) :: !scored_positions
          )
          positions)
-    (p.musicians |> Array.to_seq |> IntSet.of_seq |> IntSet.to_seq);
+    known_instruments;
+
   (* Sort positions to get highest-scoring first *)
   let best_positions = List.sort (fun (_, _, s1) (_, _, s2) -> Float.compare s2 s1) !scored_positions in
-  let choose_place already_placed this_instrument =
-    List.to_seq best_positions
-    |> Seq.filter (fun (instrument, placement_num, _) ->
-        this_instrument = instrument && not (IntMap.mem placement_num already_placed))
-    |> Seq.take 1
-    |> List.of_seq
-    |> function | [(_, best_placement_num, _)] -> best_placement_num;
-                | _ -> failwith "No valid placement found"
-  in
-  let placed = Array.fold_left
-      (fun placed (this_player, this_instrument) ->
-         IntMap.add (choose_place placed this_instrument) this_player placed)
-      IntMap.empty
-      (Array.mapi (fun i instr -> (i, instr)) p.musicians) in
-  placed
-  |> IntMap.to_list
-  |> List.sort (fun a b -> Int.compare (snd a) (snd b))
-  |> List.map (fun (placement_id, _) -> Array.get positions placement_id)
-;;
+
+  let rec go placed placed_count best_positions players_by_instrument =
+    if placed_count = Array.length p.musicians then
+      IntMap.to_seq placed
+      |> Seq.map (fun (placement_num, player_num) -> (player_num, placement_num))
+      |> IntPairSet.of_seq
+      |> IntPairSet.to_seq
+      |> Seq.map (fun (_player_num, placement_num) -> Array.get positions placement_num)
+      |> List.of_seq
+    else
+      match best_positions with
+      | [] -> failwith "ran out of positions!";
+      | ((instrument, placement_num, _score) :: other_pos) ->
+        if IntMap.mem placement_num placed then
+          go placed placed_count other_pos players_by_instrument
+        else
+          match IntMap.find instrument players_by_instrument with
+          | [] -> go placed placed_count other_pos players_by_instrument;
+          | player_num :: other_players ->
+            let new_placed = IntMap.add placement_num player_num placed in
+            let new_players_by_instrument = IntMap.add instrument other_players players_by_instrument in
+            go new_placed (placed_count + 1) other_pos new_players_by_instrument in
+
+  go IntMap.empty 0 best_positions (players_by_instrument p);;
 
 let spread_solver p =
   { placements = grid_positions p |> choose_best p };;
-
 
 let () =
   Random.init 42;
