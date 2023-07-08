@@ -69,33 +69,37 @@ let raw_score_at instrument attendees placement =
 (*   |> Seq.take (Array.length p.musicians) *)
 (*   |> List.of_seq;; *)
 
-module IntSet = Set.Make(Int);;
+module IntMap = Map.Make(Int);;
 
-let choose_best p placements =
-  let placements = Array.of_list placements in
-  let scored_placements = ref [] in
+let choose_best p positions =
+  let positions = Array.of_list positions in
+  let scored_positions = ref [] in
   Array.iteri
     (fun player_num instrument ->
        Array.iteri
          (fun placement_num placement ->
             let score = raw_score_at instrument p.attendees placement in
-            scored_placements := (player_num, placement_num, score) :: !scored_placements
+            scored_positions := (player_num, placement_num, score) :: !scored_positions
          )
-         placements)
+         positions)
     p.musicians;
-  (* Sort placements to get highest-scoring first *)
-  let best_placements = List.sort (fun (_, _, s1) (_, _, s2) -> Float.compare s2 s1) !scored_placements in
-  let (_, final_placements) = Array.fold_left_map
-      (fun used this_player ->
-         let (_, best_placement_num, _) = List.find
+  (* Sort positions to get highest-scoring first *)
+  let best_positions = List.sort (fun (_, _, s1) (_, _, s2) -> Float.compare s2 s1) !scored_positions in
+  let placed = Array.fold_left
+      (fun placed this_player ->
+         let (_, best_placement_num, _) =
+           List.find
              (fun (player_num, placement_num, _) ->
-                this_player = player_num && not (IntSet.mem placement_num used))
-             best_placements in
-         (IntSet.add best_placement_num used, Array.get placements best_placement_num)
+                this_player = player_num && not (IntMap.mem placement_num placed))
+             best_positions in
+         IntMap.add best_placement_num this_player placed
       )
-      IntSet.empty
+      IntMap.empty
       (Array.mapi (fun i _ -> i) p.musicians) in
-  final_placements |> Array.to_list
+  placed
+  |> IntMap.to_list
+  |> List.sort (fun a b -> Int.compare (snd a) (snd b))
+  |> List.map (fun (placement_id, _) -> Array.get positions placement_id)
 ;;
 
 let spread_solver p =
