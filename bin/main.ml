@@ -11,6 +11,10 @@ type attendee = { x: int;
                   tastes: taste array;
                 } [@@deriving yojson];;
 
+type pillar = { center: coord;
+                radius: int
+              } [@@deriving yojson];;
+
 type problem = { room_width : int;
                  room_height : int;
                  stage_width: int;
@@ -18,7 +22,7 @@ type problem = { room_width : int;
                  stage_bottom_left: coord;
                  musicians: instrument array;
                  attendees: attendee array;
-                 pillars: bool list;
+                 pillars: pillar list;
                } [@@deriving yojson];;
 
 
