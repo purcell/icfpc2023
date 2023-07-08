@@ -1,29 +1,29 @@
 open Ppx_yojson_conv_lib.Yojson_conv.Primitives
 
-type taste = int [@@deriving yojson];;
+type taste = int [@@deriving of_yojson];;
 
-type coord = (int * int) [@@deriving yojson];;
+type coord = (int * int) [@@deriving of_yojson];;
 
-type instrument = int [@@deriving yojson];;
+type instrument = int [@@deriving of_yojson];;
 
 type attendee = { x: int;
                   y: int;
-                  tastes: taste list;
-                } [@@deriving yojson];;
+                  tastes: taste array;
+                } [@@deriving of_yojson];;
 
 type problem = { room_width : int;
                  room_height : int;
                  stage_width: int;
                  stage_height: int;
                  stage_bottom_left: coord;
-                 musicians: instrument list;
-                 attendees: attendee list;
+                 musicians: instrument array;
+                 attendees: attendee array;
                  pillars: bool list;
-               } [@@deriving yojson];;
+               } [@@deriving of_yojson];;
 
 
-type placement = { x: int; y: int } [@@deriving yojson];;
-type solution = { placements: placement list } [@@deriving yojson]
+type placement = { x: int; y: int } [@@deriving yojson_of];;
+type solution = { placements: placement list } [@@deriving yojson_of]
 
 let shuffle d =
   let nd = List.map (fun c -> (Random.bits (), c)) d in
@@ -52,7 +52,7 @@ let spread_solver p =
   let placements = grid_positions p
                    |> shuffle
                    |> List.to_seq
-                   |> Seq.take (List.length p.musicians)
+                   |> Seq.take (Array.length p.musicians)
                    |> List.of_seq in
   { placements = placements };;
 
