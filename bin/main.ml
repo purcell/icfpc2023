@@ -90,16 +90,18 @@ let choose_best p positions =
     (p.musicians |> Array.to_seq |> IntSet.of_seq |> IntSet.to_seq);
   (* Sort positions to get highest-scoring first *)
   let best_positions = List.sort (fun (_, _, s1) (_, _, s2) -> Float.compare s2 s1) !scored_positions in
+  let choose_place already_placed this_instrument =
+    List.to_seq best_positions
+    |> Seq.filter (fun (instrument, placement_num, _) ->
+        this_instrument = instrument && not (IntMap.mem placement_num already_placed))
+    |> Seq.take 1
+    |> List.of_seq
+    |> function | [(_, best_placement_num, _)] -> best_placement_num;
+                | _ -> failwith "No valid placement found"
+  in
   let placed = Array.fold_left
       (fun placed (this_player, this_instrument) ->
-         List.to_seq best_positions
-         |> Seq.filter (fun (instrument, placement_num, _) ->
-             this_instrument = instrument && not (IntMap.mem placement_num placed))
-         |> Seq.take 1
-         |> List.of_seq
-         |> function | [(_, best_placement_num, _)] -> IntMap.add best_placement_num this_player placed;
-                     | _ -> failwith "No valid placement found"
-      )
+         IntMap.add (choose_place placed this_instrument) this_player placed)
       IntMap.empty
       (Array.mapi (fun i instr -> (i, instr)) p.musicians) in
   placed
