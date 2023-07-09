@@ -79,6 +79,14 @@ let raw_score_at instrument attendees placement =
 
 let num_instrs p = 1 + Array.fold_left max 0 p.musicians;;
 
+let pull_out_match pred items =
+  let rec go seen = function
+    | [] -> (None, List.rev seen)
+    | (p :: rest) ->
+      if pred p then (Some p, List.append (List.rev seen) rest)
+      else go (p :: seen) rest
+  in go [] items;;
+
 let choose_best p positions =
   let positions = Array.of_list positions in
   let instrument_counts = Array.make (num_instrs p) 0 in
@@ -98,6 +106,7 @@ let choose_best p positions =
   let placements_by_position_idx = Array.map (fun _ -> None) positions in
   let placements_by_instrument = Array.init (num_instrs p) (fun _ -> Queue.create ()) in
   let volumes_by_position_idx = Array.map (fun _ -> 10) positions in
+  let look_up_position position_idx = Array.get positions position_idx in
 
   let placed_count = ref 0 in
   while !placed_count < Array.length p.musicians do
@@ -114,7 +123,22 @@ let choose_best p positions =
             Array.set instrument_counts instrument (remaining_players - 1);
             Queue.push position_idx (Array.get placements_by_instrument instrument);
             Array.set volumes_by_position_idx position_idx (if score > 0.0 then 10 else 0);
-            placed_count := !placed_count + 1
+            placed_count := !placed_count + 1;
+
+            if remaining_players > 1 then
+              (* Re-prioritise upcoming nearby positions to favour the same instrument *)
+              let lookahead_window = Array.length positions in
+              let upcoming = List.to_seq rest |> Seq.take lookahead_window |> List.of_seq in
+              let euclidean_distance pos_idx1 pos_idx2 =
+                let p1 = look_up_position pos_idx1 in
+                let p2 = look_up_position pos_idx2 in
+                abs (p1.x - p2.x) + abs (p1.y - p2.y) in
+              let good_next (other_instr, other_pos_idx, _) =
+                other_instr = instrument && 30 < euclidean_distance position_idx other_pos_idx in
+              match pull_out_match good_next upcoming with
+              | (Some good, window_rest) ->
+                best_positions := good :: List.append window_rest (List.to_seq rest |> Seq.drop lookahead_window |> List.of_seq);
+              | _ -> ();
         end
       | _ -> (); (* Spot already filled *)
   done;
@@ -124,7 +148,7 @@ let choose_best p positions =
     (fun i ->
        let position_idx = Array.get placements_by_instrument i |> Queue.pop in
        let volume = Array.get volumes_by_position_idx position_idx in
-       let position = Array.get positions position_idx in
+       let position = look_up_position position_idx in
        (position, volume))
     p.musicians |> Array.to_list;;
 
