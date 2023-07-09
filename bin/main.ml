@@ -25,8 +25,8 @@ type problem = { room_width : int;
                  pillars: pillar list;
                } [@@deriving yojson];;
 
-
 type placement = { x: int; y: int } [@@deriving yojson_of];;
+
 type solution = { placements: placement list } [@@deriving yojson_of]
 
 
@@ -63,69 +63,46 @@ let raw_score_at instrument attendees placement =
     ) attendees;
   !total;;
 
-module IntPair =
-struct
-  type t = int * int
-  let compare (x0,y0) (x1,y1) =
-    match Int.compare x0 x1 with
-      0 -> Int.compare y0 y1
-    | c -> c
-end;;
-
-module IntPairMap = Map.Make(IntPair);;
-module IntPairSet = Set.Make(IntPair);;
-
-module IntMap = Map.Make(Int);;
-module IntSet = Set.Make(Int);;
-
-let players_by_instrument p =
-  Array.to_seq p.musicians
-  |> Seq.fold_lefti
-    (fun by_instrument n i ->
-       IntMap.add_to_list i n by_instrument
-    ) IntMap.empty;;
-
-
 let choose_best p positions =
   let positions = Array.of_list positions in
-  let known_instruments = (p.musicians |> Array.to_seq |> IntSet.of_seq |> IntSet.to_seq) in
-  let scored_positions = ref [] in
-  Seq.iter
-    (fun instrument ->
-       Array.iteri
-         (fun placement_num placement ->
-            let score = raw_score_at instrument p.attendees placement in
-            scored_positions := (instrument, placement_num, score) :: !scored_positions
-         )
-         positions)
-    known_instruments;
+  let num_instrs = 1 + Array.fold_left max 0 p.musicians in
+  let instrument_counts = Array.make num_instrs 0 in
+  Array.iter (fun i -> Array.set instrument_counts i (1 + Array.get instrument_counts i)) p.musicians;
 
-  (* Sort positions to get highest-scoring first *)
-  let best_positions = List.sort (fun (_, _, s1) (_, _, s2) -> Float.compare s2 s1) !scored_positions in
+  let scored_positions =
+    positions |> Array.mapi
+      (fun position_idx position ->
+         Array.mapi
+           (fun instrument _ ->
+              (instrument, position_idx, (raw_score_at instrument p.attendees position)))
+           instrument_counts)
+    |> Array.to_list |> Array.concat |> Array.to_list in
 
-  let rec go placed placed_count best_positions players_by_instrument =
-    if placed_count = Array.length p.musicians then
-      IntMap.to_seq placed
-      |> Seq.map (fun (placement_num, player_num) -> (player_num, placement_num))
-      |> IntPairSet.of_seq
-      |> IntPairSet.to_seq
-      |> Seq.map (fun (_player_num, placement_num) -> Array.get positions placement_num)
-      |> List.of_seq
-    else
-      match best_positions with
-      | [] -> failwith "ran out of positions!";
-      | ((instrument, placement_num, _score) :: other_pos) ->
-        if IntMap.mem placement_num placed then
-          go placed placed_count other_pos players_by_instrument
-        else
-          match IntMap.find instrument players_by_instrument with
-          | [] -> go placed placed_count other_pos players_by_instrument;
-          | player_num :: other_players ->
-            let new_placed = IntMap.add placement_num player_num placed in
-            let new_players_by_instrument = IntMap.add instrument other_players players_by_instrument in
-            go new_placed (placed_count + 1) other_pos new_players_by_instrument in
+  (* Mutable state while assigning places *)
+  let best_positions = ref (List.sort (fun (_, _, s1) (_, _, s2) -> Float.compare s2 s1) scored_positions) in
+  let placements_by_position_idx = Array.map (fun _ -> None) positions in
+  let placements_by_instrument = Array.init num_instrs (fun _ -> Queue.create ()) in
 
-  go IntMap.empty 0 best_positions (players_by_instrument p);;
+  let placed_count = ref 0 in
+  while !placed_count < Array.length p.musicians do
+    match !best_positions with
+    | [] -> failwith "ran out of positions!";
+    | ((instrument, position_idx, _score) :: rest) ->
+      best_positions := rest;
+      match Array.get placements_by_position_idx position_idx with
+      | None -> begin
+          match Array.get instrument_counts instrument with
+          | 0 -> ();  (* No more of these instruments *)
+          | remaining_players ->
+            Array.set placements_by_position_idx position_idx (Some instrument);
+            Array.set instrument_counts instrument (remaining_players - 1);
+            Queue.push (Array.get positions position_idx) (Array.get placements_by_instrument instrument);
+            placed_count := !placed_count + 1
+        end
+      | _ -> (); (* Spot already filled *)
+  done;
+
+  Array.map (fun i -> Array.get placements_by_instrument i |> Queue.pop) p.musicians |> Array.to_list;;
 
 let spread_solver p =
   { placements = grid_positions p |> choose_best p };;

@@ -11,4 +11,4 @@ if [ -z "$n" ]; then
   exit 2
 fi
 
-gzcat "problems/problem-$n.json.gz" | "$prog" | jq . > "solutions/solution-$n.json"
+gzcat "problems/problem-$n.json.gz" | env OCAMLRUNPARAM=b "$prog" | jq . > "solutions/solution-$n.json"
