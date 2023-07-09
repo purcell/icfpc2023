@@ -39,15 +39,27 @@ let grid_positions p =
   let inner_width = p.stage_width - 20 in
   let inner_height = p.stage_height - 20 in
   let to_placement p = { x = p.x + x_bl + 10; y = p.y + y_bl + 10; } in
+  (* Pick a fairly dense row spacing that comes close to the stage edge *)
+  let xincr =
+    List.sort
+      (fun a b -> compare (inner_width mod a) (inner_width mod b))
+      [14; 13; 12; 11; 10] |> List.hd in
+  let yincr =
+    List.sort
+      (fun a b -> compare (inner_height mod a) (inner_height mod b))
+      [14; 13; 12; 11; 10; 9]
+    |> List.filter (fun i -> i * i + (xincr / 2) * (xincr / 2) >= 100) |>List.hd in
   let spots = ref [] in
   let pos = ref { x = 0; y = 0; } in
   while !pos.x <= inner_width && !pos.y <= inner_height do
     spots := to_placement !pos :: !spots;
-    pos := if !pos.x + 10 > inner_width then
-        { x = if !pos.x mod 10 = 0 then 5 else 0; y = !pos.y + 10; }
+    pos := if !pos.x + xincr > inner_width then
+        { x = if !pos.x mod xincr = 0 then xincr / 2 else 0; y = !pos.y + yincr; }
       else
-        { x = !pos.x + 10; y = !pos.y; }
+        { x = !pos.x + xincr; y = !pos.y; }
   done;
+  if List.length !spots < Array.length p.musicians then
+    failwith "grid too sparse";
   !spots;;
 
 let distancesq (ax, ay) (bx, by) =
