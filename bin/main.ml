@@ -39,16 +39,8 @@ let grid_positions p =
   let inner_width = p.stage_width - 20 in
   let inner_height = p.stage_height - 20 in
   let to_placement p = { x = p.x + x_bl + 10; y = p.y + y_bl + 10; } in
-  (* Pick a fairly dense row spacing that comes close to the stage edge *)
-  let xincr =
-    List.sort
-      (fun a b -> compare (inner_width mod a) (inner_width mod b))
-      [14; 13; 12; 11; 10] |> List.hd in
-  let yincr =
-    List.sort
-      (fun a b -> compare (inner_height mod a) (inner_height mod b))
-      [14; 13; 12; 11; 10; 9]
-    |> List.filter (fun i -> i * i + (xincr / 2) * (xincr / 2) >= 100) |>List.hd in
+  let xincr = 10 in
+  let yincr = 9 in
   let spots = ref [] in
   let pos = ref { x = 0; y = 0; } in
   while !pos.x <= inner_width && !pos.y <= inner_height do
