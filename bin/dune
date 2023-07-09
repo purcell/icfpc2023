@@ -4,3 +4,7 @@
  (preprocess (pps ppx_yojson_conv ))
  (libraries icfpc2023)
 )
+
+(env
+  (dev
+    (flags (:standard -warn-error -A))))
