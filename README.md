@@ -1,12 +1,12 @@
 # Solo entry for [ICFP Contest 2023](https://icfpcontest2023.github.io/)
 
 I entered the contest again this year, with team name "sanityinc". For
-a change I used [OCaml](), which I have never worked with much, but wanted
+a change I used [OCaml](), which I used a little two years ago, and wanted
 to revisit.
 
 Check out [bin/main.ml](./bin/main.ml) for the full 130-ish lines of
 code. This was enough to be in the 80th percentile of teams by the end
-of the lightning round, continuing around that point into the second
+of the lightning round (24 hours), continuing around that point late into the second
 day — at the end of which I dropped out — and then dropping to around
 65th percentile as other teams continued in the final 20 hours or so.
 
