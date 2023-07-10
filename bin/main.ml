@@ -32,27 +32,29 @@ type solution = { placements: placement list;
                   volumes: int list;
                 } [@@deriving yojson_of]
 
-(* Make a set of potential positions by using staggered rows *)
-(* of points within the stage space inset from the edge *)
-let grid_positions p =
+
+type gridconfig = { xincr: int; yincr: int; offset: int };;
+
+(* Make a set of potential positions by using potentially staggered
+   rows of points within the stage space inset from the edge *)
+let grid_positions p {xincr; yincr; offset} =
   let (x_bl, y_bl) = p.stage_bottom_left in
   let inner_width = p.stage_width - 20 in
   let inner_height = p.stage_height - 20 in
-  let to_placement p = { x = p.x + x_bl + 10; y = p.y + y_bl + 10; } in
-  let xincr = 10 in
-  let yincr = 9 in
   let spots = ref [] in
-  let pos = ref { x = 0; y = 0; } in
-  while !pos.x <= inner_width && !pos.y <= inner_height do
-    spots := to_placement !pos :: !spots;
-    pos := if !pos.x + xincr > inner_width then
-        { x = if !pos.x mod xincr = 0 then xincr / 2 else 0; y = !pos.y + yincr; }
-      else
-        { x = !pos.x + xincr; y = !pos.y; }
+  for row = 0 to inner_height / yincr do
+    for col = 0 to inner_width / xincr do
+      let y = yincr * row in
+      let x = xincr * col + if row mod 2 = 1 then offset else 0 in
+      if x <= inner_width then
+        let grid_coord = (row, col) in
+        let placement = { x = x + x_bl + 10; y = y + y_bl + 10; } in
+        spots := (grid_coord, placement) :: !spots
+    done
   done;
   if List.length !spots < Array.length p.musicians then
     failwith "grid too sparse";
-  !spots;;
+  List.map snd !spots;;
 
 let distancesq (ax, ay) (bx, by) =
   let dx = ax - bx in
@@ -71,8 +73,9 @@ let raw_score_at instrument attendees placement =
 
 let num_instrs p = 1 + Array.fold_left max 0 p.musicians;;
 
-let choose_best p positions =
-  let positions = Array.of_list positions in
+let solve p =
+  let grid_config = { xincr = 10; yincr = 9; offset = 5; } in
+  let positions = Array.of_list (grid_positions p grid_config) in
   let instrument_counts = Array.make (num_instrs p) 0 in
   Array.iter (fun i -> Array.set instrument_counts i (1 + Array.get instrument_counts i)) p.musicians;
 
@@ -121,7 +124,7 @@ let choose_best p positions =
     p.musicians |> Array.to_list;;
 
 let spread_solver p =
-  let placements_and_volumes = grid_positions p |> choose_best p in
+  let placements_and_volumes = solve p in
   { placements = List.map fst placements_and_volumes;
     volumes = List.map snd placements_and_volumes;
   };;
