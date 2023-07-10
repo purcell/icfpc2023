@@ -61,15 +61,38 @@ let distancesq (ax, ay) (bx, by) =
   let dy = ay - by in
   dx * dx + dy * dy;;
 
-let raw_score_at instrument attendees placement =
-  let total = ref 0.0 in
-  Array.iter (fun attendee ->
-      let affinity = Array.get attendee.tastes instrument in
-      let d2 = distancesq (placement.x, placement.y) (attendee.x, attendee.y) in
-      let score = 1.0e6 *. (float_of_int affinity) /. (float_of_int d2) in
-      total := !total +. score;
-    ) attendees;
-  !total;;
+let angle_to (ax, ay) (bx, by) =
+  let dx = bx - ax in
+  let dy = by - ay in
+  atan (float_of_int dx /. float_of_int dy);;
+
+let blocked_angles_from p1 p2 radius =
+  let dist = sqrt (float_of_int (distancesq p1 p2)) in
+  let radius_subtend = asin (dist /. float_of_int radius) in
+  let to_center = angle_to p1 p2 in
+  (to_center -. radius_subtend, to_center +. radius_subtend);;
+
+let raw_score_at pillars instrument attendees {x; y} =
+  let blocked_by (attendee : attendee) { radius; center } =
+    let pos = (x, y) in
+    let attendee_pos = (attendee.x, attendee.y) in
+    let pillar_dist_sq = distancesq pos center in
+    let attendee_dist_sq = distancesq pos attendee_pos in
+    pillar_dist_sq < attendee_dist_sq &&
+    let (angle1, angle2) = blocked_angles_from pos center radius in
+    let angle_to_attendee = angle_to pos attendee_pos in
+    angle_to_attendee >= angle1 && angle_to_attendee <= angle2
+  in
+  Array.fold_left
+    (fun total (attendee : attendee) ->
+       total +.
+       match List.find_opt (fun p -> blocked_by attendee p) pillars with
+       | Some pillar -> 0.0;
+       | None ->
+         let affinity = Array.get attendee.tastes instrument in
+         let d2 = distancesq (x, y) (attendee.x, attendee.y) in
+         1.0e6 *. (float_of_int affinity) /. (float_of_int d2)
+    ) 0.0 attendees;;
 
 let num_instrs p = 1 + Array.fold_left max 0 p.musicians;;
 
@@ -84,7 +107,7 @@ let solve p =
       (fun position_idx position ->
          Array.mapi
            (fun instrument _ ->
-              (instrument, position_idx, (raw_score_at instrument p.attendees position)))
+              (instrument, position_idx, (raw_score_at p.pillars instrument p.attendees position)))
            instrument_counts)
     |> Array.to_list |> Array.concat |> Array.to_list in
 
