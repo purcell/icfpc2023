@@ -43,7 +43,7 @@ myself.)
 
 At no point did I write an accurate scoring function for the entire
 state that would take into account blocks, pillars and proximity. This
-made it harder
+made it harder to even begin optimising placements.
 
 If I'd had a few more days and more energy, I'd have written such a
 function and then tried a more stochastic approach to optimise the
