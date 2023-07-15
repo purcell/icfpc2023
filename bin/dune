@@ -6,5 +6,7 @@
 )
 
 (env
-  (dev
+  (release
+   (ocamlopt_flags (:standard -O3)))
+ (dev
     (flags (:standard -warn-error -A))))
