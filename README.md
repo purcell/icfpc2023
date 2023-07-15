@@ -1,8 +1,8 @@
 # Solo entry for [ICFP Contest 2023](https://icfpcontest2023.github.io/)
 
 I entered the contest again this year, with team name "sanityinc". For
-a change I used [OCaml](), which I used a little two years ago, and wanted
-to revisit.
+a change I used [OCaml](), which I worked with a little two years ago,
+and wanted to revisit.
 
 Check out [bin/main.ml](./bin/main.ml) for the full 130-ish lines of
 code. This was enough to be in the 80th percentile of teams by the end
