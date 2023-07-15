@@ -19,6 +19,7 @@ the musicians are placed.
 
 This was very fast to do, and all 90 problems could be computed in
 around 10 minutes on a MacBook Air.
+_(Update: would have been 5 mins if I'd just enabled `-O3` for `ocamlopt`.)_
 
 One basic variation I tried was different grid densities: making the
 grid slightly denser or looser helped for some problems, but hindered
